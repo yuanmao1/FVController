@@ -8,6 +8,7 @@
 #include <GL/GL.h>
 #include <tchar.h>
 #include <shlobj.h>
+#include <shellapi.h> // 添加此行以定义 HDROP
 #include <string>
 #include "project.h"
 
@@ -19,7 +20,7 @@ std::wstring GetDefaultPath() {
     return L"";
 }
 
-int WINAPI WinMain() {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     std::wstring defaultPath = GetDefaultPath();
     // 交互界面代码
 }

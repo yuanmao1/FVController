@@ -12,6 +12,7 @@
 class Project {
 private:
 	std::map<std::string, V_FILE> files; // name - object
+	std::wstring path;
 	uint32_t clock;
 public:
 	Project() = delete;
@@ -20,9 +21,10 @@ public:
 	Project& operator=(Project& other) = delete; // 删除复制赋值运算符
 	Project& operator=(const Project&& other) = delete; // 删除移动赋值运算符
 	Project(std::wstring path);
-	std::vector<V_FILE> getFiles();
-	void addVersion(std::vector<std::wstring> pathes, std::string description);
+	std::map<std::string, V_FILE>& getFiles();
+	void addVersion(std::vector<std::wstring>& pathes, std::string description);
 };
 
+static Project* selectedProject = nullptr;
 
 #endif

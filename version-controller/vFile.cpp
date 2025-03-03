@@ -7,7 +7,7 @@
 #include <codecvt>
 #include <algorithm>  
 
-explicit V_FILE::V_FILE(std::wstring path, std::string_view content) {
+explicit V_FILE::V_FILE(std::wstring path, std::string_view content, std::string description, uint32_t clock) {
     try {
         std::wofstream file(path + L"pc");
         if (!file.is_open()) {
@@ -19,7 +19,7 @@ explicit V_FILE::V_FILE(std::wstring path, std::string_view content) {
         file.close();
 
         this->primitiveContent = content;
-        this->nodes.clear();
+        this->nodes.emplace_back(std::make_tuple(clock, description, diff_match_patch<std::string>::Patches()));
     }
     catch (const std::exception& e) {
         std::cerr << "Error in V_FILE constructor: " << e.what() << std::endl;
