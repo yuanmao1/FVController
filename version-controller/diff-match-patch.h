@@ -22,7 +22,7 @@
 
 #ifndef DIFF_MATCH_PATCH_H
 #define DIFF_MATCH_PATCH_H
-
+#define NOMINMAX
 #include <algorithm>
 #include <cstdlib>
 #include <cwchar>
@@ -86,12 +86,12 @@ public:
 
     /**-
      * The data structure representing a diff is a Linked list of Diff objects:
-     * {Diff(Operation.DELETE, "Hello"), Diff(Operation.INSERT, "Goodbye"),
+     * {Diff(Operation.DELETION, "Hello"), Diff(Operation.INSERT, "Goodbye"),
      *  Diff(Operation.EQUAL, " world.")}
      * which means: delete "Hello", add "Goodbye" and keep " world."
      */
     enum Operation {
-        DELETE,
+        DELETION,
         INSERT,
         EQUAL
     };
@@ -102,14 +102,14 @@ public:
     class Diff {
     public:
         Operation operation;
-        // One of: INSERT, DELETE or EQUAL.
+        // One of: INSERT, DELETION or EQUAL.
 
         string_t text;
         // The text associated with this diff operation.
 
         /**
          * Constructor.  Initializes the diff with the provided values.
-         * @param operation One of INSERT, DELETE or EQUAL.
+         * @param operation One of INSERT, DELETION or EQUAL.
          * @param text The text being applied.
          */
         Diff(Operation _operation, const string_t& _text) : operation(_operation), text(_text) {}
@@ -142,7 +142,7 @@ public:
         static string_t strOperation(Operation op) {
             switch (op) {
             case INSERT: return traits::cs(L"INSERT");
-            case DELETE: return traits::cs(L"DELETE");
+            case DELETION: return traits::cs(L"DELETION");
             case EQUAL: return traits::cs(L"EQUAL");
             }
             throw string_t(traits::cs(L"Invalid operation."));
@@ -204,7 +204,7 @@ public:
                 ++cur_diff) {
                 switch ((*cur_diff).operation) {
                 case INSERT: text += traits::from_wchar(L'+'); break;
-                case DELETE: text += traits::from_wchar(L'-'); break;
+                case DELETION: text += traits::from_wchar(L'-'); break;
                 case EQUAL: text += traits::from_wchar(L' '); break;
                 }
                 append_percent_encoded(text, (*cur_diff).text);
@@ -352,7 +352,7 @@ private:
 
         if (text2.empty()) {
             // Just delete some text (speedup).
-            diffs.push_back(Diff(DELETE, text1));
+            diffs.push_back(Diff(DELETION, text1));
             return;
         }
 
@@ -362,7 +362,7 @@ private:
             const size_t    i = longtext.find(shorttext);
             if (i != string_t::npos) {
                 // Shorter text is inside the longer text (speedup).
-                const Operation op = (text1.length() > text2.length()) ? DELETE : INSERT;
+                const Operation op = (text1.length() > text2.length()) ? DELETION : INSERT;
                 diffs.push_back(Diff(op, longtext.substr(0, i)));
                 diffs.push_back(Diff(EQUAL, shorttext));
                 diffs.push_back(Diff(op, safeMid(longtext, i + shorttext.length())));
@@ -372,7 +372,7 @@ private:
             if (shorttext.length() == 1) {
                 // Single character string.
                 // After the previous speedup, the character can't be an equality.
-                diffs.push_back(Diff(DELETE, text1));
+                diffs.push_back(Diff(DELETION, text1));
                 diffs.push_back(Diff(INSERT, text2));
                 return;
             }
@@ -441,7 +441,7 @@ private:
                 count_insert++;
                 text_insert += (*cur_diff).text;
                 break;
-            case DELETE:
+            case DELETION:
                 count_delete++;
                 text_delete += (*cur_diff).text;
                 break;
@@ -595,7 +595,7 @@ private:
         // Diff took too long and hit the deadline or
         // number of diffs equals number of characters, no commonality at all.
         diffs.clear();
-        diffs.push_back(Diff(DELETE, text1));
+        diffs.push_back(Diff(DELETION, text1));
         diffs.push_back(Diff(INSERT, text2));
     }
 
@@ -949,7 +949,7 @@ public:
                     // Change second copy to insert.
                     (*(cur_diff = equalities.back())).operation = INSERT;
                     // Duplicate record.
-                    diffs.insert(cur_diff, Diff(DELETE, lastequality));
+                    diffs.insert(cur_diff, Diff(DELETION, lastequality));
                     equalities.pop_back(); // Throw away the equality we just deleted.
                     if (!equalities.empty()) {
                         // Throw away the previous equality (it needs to be reevaluated).
@@ -990,7 +990,7 @@ public:
         if ((cur_diff = diffs.begin()) != diffs.end()) {
             for (typename Diffs::iterator prev_diff = cur_diff; ++cur_diff != diffs.end();
                 prev_diff = cur_diff) {
-                if ((*prev_diff).operation == DELETE && (*cur_diff).operation == INSERT) {
+                if ((*prev_diff).operation == DELETION && (*cur_diff).operation == INSERT) {
                     string_t deletion = (*prev_diff).text;
                     string_t insertion = (*cur_diff).text;
                     int      overlap_length1 = diff_commonOverlap(deletion, insertion);
@@ -1018,7 +1018,7 @@ public:
                             prev_diff->operation = INSERT;
                             prev_diff->text =
                                 insertion.substr(0, insertion.length() - overlap_length2);
-                            cur_diff->operation = DELETE;
+                            cur_diff->operation = DELETION;
                             cur_diff->text = safeMid(deletion, overlap_length2);
                             // diffs.insert inserts the element before the cursor, so there is
                             // no need to step past the new element.
@@ -1222,7 +1222,7 @@ public:
             }
             else {
                 // An insertion or deletion.
-                if ((*cur_diff).operation == DELETE) {
+                if ((*cur_diff).operation == DELETION) {
                     post_del = true;
                 }
                 else {
@@ -1245,7 +1245,7 @@ public:
                     // Change second copy to insert.
                     (*(cur_diff = equalities.back())).operation = INSERT;
                     // Duplicate record.
-                    diffs.insert(cur_diff, Diff(DELETE, lastequality));
+                    diffs.insert(cur_diff, Diff(DELETION, lastequality));
                     equalities.pop_back(); // Throw away the equality we just deleted.
                     lastequality.clear();
                     changes = true;
@@ -1301,7 +1301,7 @@ public:
                 text_insert += (*cur_diff).text;
                 prevEqual = NULL;
                 break;
-            case DELETE:
+            case DELETION:
                 count_delete++;
                 text_delete += (*cur_diff).text;
                 prevEqual = NULL;
@@ -1345,7 +1345,7 @@ public:
                     }
                     // Insert the merged records.
                     if (!text_delete.empty()) {
-                        diffs.insert(cur_diff, Diff(DELETE, text_delete));
+                        diffs.insert(cur_diff, Diff(DELETION, text_delete));
                     }
                     if (!text_insert.empty()) {
                         diffs.insert(cur_diff, Diff(INSERT, text_insert));
@@ -1441,7 +1441,7 @@ public:
                 // Equality or deletion.
                 chars1 += (*cur_diff).text.length();
             }
-            if ((*cur_diff).operation != DELETE) {
+            if ((*cur_diff).operation != DELETION) {
                 // Equality or insertion.
                 chars2 += (*cur_diff).text.length();
             }
@@ -1453,7 +1453,7 @@ public:
             last_chars1 = chars1;
             last_chars2 = chars2;
         }
-        if (last_diff != diffs.end() && (*last_diff).operation == DELETE) {
+        if (last_diff != diffs.end() && (*last_diff).operation == DELETION) {
             // The location was deleted.
             return last_chars2;
         }
@@ -1500,7 +1500,7 @@ public:
                 html += traits::cs(L"<ins style=\"background:#e6ffe6;\">") + text +
                     traits::cs(L"</ins>");
                 break;
-            case DELETE:
+            case DELETION:
                 html += traits::cs(L"<del style=\"background:#ffe6e6;\">") + text +
                     traits::cs(L"</del>");
                 break;
@@ -1537,7 +1537,7 @@ public:
         string_t text;
         for (typename Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end();
             ++cur_diff) {
-            if ((*cur_diff).operation != DELETE) {
+            if ((*cur_diff).operation != DELETION) {
                 text += (*cur_diff).text;
             }
         }
@@ -1559,7 +1559,7 @@ public:
             ++cur_diff) {
             switch ((*cur_diff).operation) {
             case INSERT: insertions += (*cur_diff).text.length(); break;
-            case DELETE: deletions += (*cur_diff).text.length(); break;
+            case DELETION: deletions += (*cur_diff).text.length(); break;
             case EQUAL:
                 // A deletion and an insertion is one substitution.
                 levenshtein += std::max(insertions, deletions);
@@ -1592,7 +1592,7 @@ public:
                 text += traits::from_wchar(L'\t');
                 break;
             }
-            case DELETE:
+            case DELETION:
                 text += traits::from_wchar(L'-') + to_string((*cur_diff).text.length()) +
                     traits::from_wchar(L'\t');
                 break;
@@ -1652,7 +1652,7 @@ public:
                     diffs.push_back(Diff(EQUAL, text));
                 }
                 else {
-                    diffs.push_back(Diff(DELETE, text));
+                    diffs.push_back(Diff(DELETION, text));
                 }
                 break;
             }
@@ -1740,7 +1740,7 @@ protected:
 
         int  bin_min, bin_mid;
         int  bin_max = pattern.length() + text.length();
-        int* rd;
+        int* rd = nullptr;
         int* last_rd = NULL;
         for (int d = 0; d < (int)pattern.length(); d++) {
             // Scan for the best match; each iteration allows for one more error.
@@ -1974,7 +1974,7 @@ public:
                     postpatch_text = postpatch_text.substr(0, char_count2) + (*cur_diff).text +
                         safeMid(postpatch_text, char_count2);
                     break;
-                case DELETE:
+                case DELETION:
                     patch.length1 += (*cur_diff).text.length();
                     patch.diffs.push_back(*cur_diff);
                     postpatch_text =
@@ -2011,7 +2011,7 @@ public:
                 if ((*cur_diff).operation != INSERT) {
                     char_count1 += (*cur_diff).text.length();
                 }
-                if ((*cur_diff).operation != DELETE) {
+                if ((*cur_diff).operation != DELETION) {
                     char_count2 += (*cur_diff).text.length();
                 }
             }
@@ -2139,7 +2139,7 @@ public:
                                     text = text.substr(0, start_loc + index2) + (*cur_diff).text +
                                         safeMid(text, start_loc + index2);
                                 }
-                                else if ((*cur_diff).operation == DELETE) {
+                                else if ((*cur_diff).operation == DELETION) {
                                     // Deletion
                                     text =
                                         text.substr(0, start_loc + index2) +
@@ -2149,7 +2149,7 @@ public:
                                                 diffs, index1 + (*cur_diff).text.length()));
                                 }
                             }
-                            if ((*cur_diff).operation != DELETE) {
+                            if ((*cur_diff).operation != DELETION) {
                                 index1 += (*cur_diff).text.length();
                             }
                         }
@@ -2277,7 +2277,7 @@ public:
                         bigpatch.diffs.pop_front();
                         empty = false;
                     }
-                    else if (diff_type == DELETE && patch.diffs.size() == 1 &&
+                    else if (diff_type == DELETION && patch.diffs.size() == 1 &&
                         patch.diffs.front().operation == EQUAL &&
                         (int)diff_text.length() > 2 * patch_size) {
                         // This is a large deletion.  Let it pass in one chunk.
@@ -2445,7 +2445,7 @@ public:
                     switch (traits::to_wchar(sign)) {
                     case L'-':
                         // Deletion.
-                        patch.diffs.push_back(Diff(DELETE, line));
+                        patch.diffs.push_back(Diff(DELETION, line));
                         continue;
                     case L'+':
                         // Insertion.
