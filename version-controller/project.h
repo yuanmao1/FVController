@@ -13,13 +13,14 @@ class Project {
 private:
     std::map<std::string, V_FILE> files; // name - object
     std::wstring                  path;
-    uint32_t                      clock;
+    uint32_t                      clock; 
 
 public:
     struct Version {
         std::string                                      description;
-        std::vector<std::pair<std::string, std::string>> files;
         uint32_t                                         clock;
+        std::vector<std::pair<std::string, std::string>> files;
+        Version() : clock(1), description(""), files(std::vector<std::pair<std::string, std::string>>()) {}
     };
     Project() = delete;
     Project(std::wstring path);

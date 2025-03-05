@@ -1,6 +1,7 @@
 #include "project.h"
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 
 Project::Project(std::wstring path) {
     this->path = path;
@@ -36,35 +37,39 @@ void Project::addVersion(std::vector<std::wstring>& pathes, std::string descript
     for (auto& path : pathes) {
         std::ifstream fileStream(path, std::ios::in | std::ios::binary);
         if (fileStream) {
-            std::string  content((std::istreambuf_iterator<char>(fileStream)),
-                std::istreambuf_iterator<char>());
+            std::string content((std::istreambuf_iterator<char>(fileStream)), std::istreambuf_iterator<char>());
             std::wstring fileName = std::filesystem::path(path).filename().wstring();
-            std::string  filename = std::string(fileName.begin(), fileName.end());
+            std::string filename = std::string(fileName.begin(), fileName.end());
             if (this->files.find(filename) != this->files.end()) {
                 this->files[filename].addVersion(content, description, this->clock);
             }
             else {
                 std::wstring subPath = this->path + L"/" + fileName + L"/";
-                std::string  subPathStr(subPath.begin(), subPath.end());
-                V_FILE       newFile(subPath, content);
+                std::string subPathStr(subPath.begin(), subPath.end());
+                V_FILE newFile(subPath, content);
                 newFile.addVersion(content, description, this->clock);
                 this->files[filename] = newFile;
             }
+        }
+        else {
+            // 处理文件读取失败的情况
+            std::cerr << "Failed to read file: " << std::string(path.begin(), path.end()) << std::endl;
         }
     }
     // 更新clock
     std::ofstream clockFile(this->path + L"/clock", std::ios::out);
     clockFile << this->clock;
     clockFile.close();
-};
+}
 
 std::vector<Project::Version> Project::getVersions() {
+    if (!this->clock) return std::vector<Project::Version>();
     std::vector<Project::Version> res(this->clock);
     for (auto i = 1; i <= this->clock; ++i) {
         res[i - 1].clock = i;
         for (auto& [name, file] : this->files) {
             auto [ok, content] = file.getVersion(i);
-            if (ok) {
+            if (ok && !name.empty() && !content.empty()) {
                 res[i - 1].files.emplace_back(std::make_pair(name, content));
             }
         }

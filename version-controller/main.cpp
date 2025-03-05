@@ -32,6 +32,10 @@ std::vector<std::pair<std::string, Project>> projects;
 std::string                                  selectedFile;
 std::string                                  currentContent;
 
+// 处理拖拽文件事件
+static bool pendingPopup = false;
+static std::vector<std::wstring> pendingPaths;
+
 // 扫描项目文件夹
 void ScanProjects(const std::wstring& defaultPath) {
     if (!std::filesystem::exists(defaultPath)) {
@@ -53,8 +57,46 @@ void ScanProjects(const std::wstring& defaultPath) {
 void RenderGUI() {
     // 项目列表窗口
     ImGui::Begin("Projects");
+    if (ImGui::Button("Add Project")) {
+        ImGui::OpenPopup("Add Project Dialog");
+    }
+
+    static char projectName[256] = "";
+    if (ImGui::BeginPopupModal("Add Project Dialog", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Enter project name:");
+        ImGui::InputText("##project_name", projectName, 256);
+
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            if (strlen(projectName) > 0) {
+                std::wstring defaultPath = GetDefaultPath();
+                std::wstring newProjectPath = defaultPath + L"\\" + std::wstring(projectName, projectName + strlen(projectName));
+
+                if (!std::filesystem::exists(newProjectPath)) {
+                    std::wstring name(projectName, projectName + strlen(projectName));
+                    Project newProject = createProject(GetDefaultPath(), name);
+                    projects.emplace_back(std::make_pair(std::string(name.begin(), name.end()), newProject));
+                    projectName[0] = '\0';
+                    ImGui::CloseCurrentPopup();
+                }
+                else {
+                    MessageBoxW(NULL, L"Project already exists!", L"Error", MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            projectName[0] = '\0';
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
     for (auto& [name, project] : projects) {
-        if (ImGui::Selectable(name.c_str(), selectedProject == &project)) {
+        if (ImGui::Selectable(name.c_str(), (selectedProject != nullptr  && selectedProject == &project))) {
+            if (!selectedProject) {
+                delete selectedProject;
+            }
             selectedProject = &project;
             selectedVersion = nullptr;
             selectedFile.clear();
@@ -68,7 +110,10 @@ void RenderGUI() {
         auto versions = selectedProject->getVersions();
         for (auto& version : versions) {
             if (ImGui::Selectable(version.description.c_str(), selectedVersion == &version)) {
-                selectedVersion = &version;
+                if (!selectedVersion) {
+                    delete selectedVersion;
+                }
+                selectedVersion = new Project::Version(version);
                 selectedFile.clear();
             }
         }
@@ -78,8 +123,8 @@ void RenderGUI() {
         if (selectedVersion) {
             ImGui::Begin("Files");
             for (auto& [filename, content] : selectedVersion->files) {
-                if (ImGui::Selectable(filename.c_str(), selectedFile == filename)) {
-                    selectedFile = filename;
+                if (ImGui::Selectable(filename.c_str(), !selectedFile.empty() && selectedFile == filename)) {
+                    selectedFile = filename; 
                     currentContent = content;
                 }
             }
@@ -88,10 +133,37 @@ void RenderGUI() {
             // 如果选中了文件，显示内容
             if (!selectedFile.empty()) {
                 ImGui::Begin("Content");
+                ImGui::TextWrapped("Filename: %s", selectedFile.c_str());
                 ImGui::TextWrapped("%s", currentContent.c_str());
                 ImGui::End();
             }
         }
+    }
+    if (pendingPopup) {
+        ImGui::OpenPopup("Add Description Dialog");
+        pendingPopup = false;
+    }
+    static char description[256] = "";
+    if (ImGui::BeginPopupModal("Add Description Dialog", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Enter version description:");
+        ImGui::InputText("##description", description, 256);
+
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            if (strlen(description) > 0 && selectedProject != nullptr) {
+                selectedProject->addVersion(pendingPaths, std::string(description));
+                description[0] = '\0';
+                pendingPaths.clear();
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            description[0] = '\0';
+            pendingPaths.clear();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
     }
 }
 
@@ -119,7 +191,8 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
 
             if (!paths.empty()) {
-                selectedProject->addVersion(paths, "Dragged files version");
+                pendingPaths = paths;
+                pendingPopup = true;
             }
 
             DragFinish(hDrop);
@@ -176,6 +249,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplOpenGL3_Init();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\msyh.ttc", 18.0f, nullptr,
+        io.Fonts->GetGlyphRangesChineseFull());
 
     // 扫描项目
     std::wstring defaultPath = GetDefaultPath();
